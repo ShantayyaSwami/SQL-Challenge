@@ -17,7 +17,7 @@ insert into Employeee (Id, Salary) values ('1', '100');
 insert into Employeee (Id, Salary) values ('2', '200');
 insert into Employeee (Id, Salary) values ('3', '300');
 
-select coalesce((select salary  from employeee order by salary desc limit 1 offset 1),null) as  SecondHighestSalary;
+select distinct salary as  SecondHighestSalary from employeee order by salary desc limit 1 offset 1;  -- offset is used to skip number of rows
 
 
 
