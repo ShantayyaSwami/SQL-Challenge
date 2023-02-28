@@ -407,6 +407,40 @@ select * from products1;
 select w.name as warehouse_name, sum(w.units*(p.width*p.length*p.height)) as volume from warehouse w inner join products1 p on
 w.product_id=p.product_id group by w.name; 
 
+-- Q42. Write an SQL query to report the difference between the number of apples and oranges sold each day. 
+-- Return the result table ordered by sale_date. 
+create table sales1(sale_date date, fruit enum('apples','oranges'), sold_num int);
+insert into sales1 values('2020-05-01','apples',10),('2020-05-01','oranges',8),('2020-05-02','apples',15),
+('2020-05-02','oranges',15),('2020-05-03','apples',20),('2020-05-03','oranges',0),('2020-05-04','apples',15),('2020-05-04','oranges',16);
+
+select * from sales1;
+with apple as (select sale_date,sold_num as apple_sold from sales1 where fruit = 'apples')
+select apple_sold - sold_num as diff from sales1 s inner join apple a on s.sale_date=a.sale_date where s.fruit = 'oranges';
+
+-- if question is of diff between oranges and apples diff
+with apple as (select sale_date,sold_num as apple_sold from sales1 where fruit = 'apples')
+select case when apple_sold >=  sold_num then apple_sold-sold_num
+	   else sold_num - apple_sold end as diff
+       from sales1 s inner join apple a on s.sale_date=a.sale_date where s.fruit = 'oranges';
+ 
+ -- Q43. Write an SQL query to report the fraction of players that logged in again on the day after the day they first logged in, 
+ -- rounded to 2 decimal places. In other words, you need to count the number of players that logged in for at least two consecutive days 
+ -- starting from their first login date, then divide that number by the total number of players.
+ create table activity(player_id int,device_id int, event_date date, games_played int);
+ insert into activity values(1,2,'2016-03-01',5),(1,2,'2016-03-02',6),(2,3,'2017-06-25',1),(3,1,'2016-03-02',0),(3,4,'2018-07-03',5);
+ select * from activity;
+ with act as (select player_id,event_date from activity)
+ 
+ select round(count(a.player_id)/(select count(distinct player_id) from act),2) as fraction from activity a inner join activity aa on a.player_id=aa.player_id where datediff(a.event_date,aa.event_date) >= 1 and month(a.event_date) = month(aa.event_date);
+ 
+-- Q44. Write an SQL query to report the managers with at least five direct reports. Return the result table in any order.
+create table employee2(id int, name varchar(50), department varchar(50), managerId int);
+insert into employee2(id,name,department) values(101,'John','A');
+insert into employee2 values(102,'Dan','A',101),(103,'James','A',101),(104,'Amy','A',101),(105,'Anne','A',101),(106,'Ron','B',101);
+
+select * from employee2;
+with manager as (select case when count(managerid) >= 5 then managerid end as manager from employee2 group by managerid having manager >= 5)
+select e.name from employee2 e inner join manager m on e.id = m.manager;
 
 
 
