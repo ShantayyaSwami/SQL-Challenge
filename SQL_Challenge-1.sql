@@ -1,6 +1,5 @@
 use sqlchallenge;
 show tables;
-drop table city;
 
 create table city(id int,name varchar(17), countrycode varchar(10), district varchar(30), population bigint null);
 select * from city;
@@ -65,14 +64,18 @@ select city,length(city) as 'length' from station where length(city) = (select m
 select count(distinct city) from station where city like "E%" or city like "I%" or city like "O%" or city like "U%" or city like "A%";
 
 select distinct city from station where city like "A%" or city like "I%" or city like "O%" or city like "U%" or city like "E%";
+select distinct city from station where left(city,1) in ('a','e','i','o','u');
+select distinct city from station where substr(city,1,1) in ('a','e','i','o','u');
+select distinct city from station where city rlike '^[aeiou].*';
 
 -- Q12. Query the list of CITY names ending with vowels (a, e, i, o, u) from STATION. Your result cannot contain duplicates.
 select distinct city from station where city like "%a" or city like "%e" or city like "%i" or city like "%o" or city like "%u";
+select distinct city from station where right(city,1) in ('a','e','i','o','u');
+select distinct city from station where substr(city,-1,1) in ('a','e','i','o','u');
+select distinct city from station where city rlike '^*.[aeiou]$';
 
 -- Q13. Query the list of CITY names from STATION that do not start with vowels. Your result cannot contain duplicates.
-select count(distinct city) from station where city not in (select distinct city from station where city like "A%" or city like "I%" or city like "O%" or city like "U%" or city like "E%");
-
-select distinct city from station where city not in (select distinct city from station where city like "A%" or city like "I%" or city like "O%" or city like "U%" or city like "E%");
+select distinct city from station where city rlike '^[^aeiou].*.[^aeiou]$';
 
 -- Q14. Query the list of CITY names from STATION that do not end with vowels. Your result cannot contain duplicates.
 select city from station where city not in (select distinct city from station where city like "%a" or city like "%e" or city like "%i" or city like "%o" or city like "%u");
@@ -230,13 +233,180 @@ select p.product_id,p.product_name from products as p inner join (
 select product_id,sum(units) as total_units from orders where order_date between '2020-02-01' and '2020-02-28' group by product_id) as orderr on p.product_id = orderr.product_id where orderr.total_units >= 100;
 
 -- Q27. Write an SQL query to find the users who have valid emails. A valid e-mail has a prefix name and a domain where: 
--- ● The prefix name is a string that may contain letters (upper or lower case), digits, underscore '_', period '.', and/or dash '-'. The prefix name must start with a letter.
+-- ● The prefix name is a string that may contain letters (upper or lower case), digits, underscore '_', period '.', and/or dash '-'. 
+-- The prefix name must start with a letter.
 -- ● The domain is '@leetcode.com'.
 create table users(user_id int primary key, name varchar(50),mail varchar(100));
 insert into users values(1,'Winston','winston@leetcode.com'),(2,'Jonathan','jonathanisgreat'),(3,'Annabelle','bella-@leetcode.com'),
 (4,'Sally','sally.come@leetcode.com'),(5,'Marwan','quarz#2020@leetcode.com'),(6,'David','david69@gmail.com'),(7,'Shapiro','.shapo@leetcode.com');
 
 select * from users;
+select * from users where mail like '%@leetcode.com' and mail regexp '^[a-zA-Z0-9][a-zA-Z0-9/._-]*@';
+
+
+-- Q28. Write an SQL query to report the customer_id and customer_name of customers who have spent at least $100 in each month of June and July 2020.
+create table customers1(customer_id int primary key,name varchar(50), country varchar(50));
+create table product1(product_id int primary key,`description` varchar(50),price int);
+create table orders1(order_id int primary key,customer_id int,product_id int,order_date date, quantity int,foreign key(customer_id) references customers1(customer_id),foreign key(product_id) references product1(product_id));
+
+insert into customers1 values(1,'Winston','USA'),(2,'Jonathan','Peru'),(3,'Moustafa','Egypt');
+insert into product1 values(10,'LC Phone',300),(20,'LC T-Shirt',10),(30,'LC Book',45),(40,'LC Keychain',2);
+insert into orders1 values(1,1,10,'2020-06-10',1),(2,1,20,'2020-07-01',1),(3,1,30,'2020-07-08',2),(4,2,10,'2020-06-15',2),
+(5,2,40,'2020-07-01',10),(6,3,20,'2020-06-24',2),(7,3,30,'2020-06-25',2),(9,3,30,'2020-05-08',3);
+
+select * from customers1;
+select * from product1;
+select * from orders1;
+
+with money_spent as (select customer_id,
+case when sum(price*quantity) >= 100 between '2020-06-01' and '2020-06-30' then customer_id
+	 when sum(price*quantity) >= 100 between '2020-07-01' and '2020-07-31' then customer_id
+     end as spent 
+from product1 as p inner join orders1 as o on p.product_id = o.product_id group by o.customer_id)
+select c.customer_id,c.`name` from money_spent as m inner join customers1 as c on m.customer_id = c.customer_id;
+
+select 
+case when sum(price*quantity) >= 100 between '2020-06-01' and '2020-06-30' and sum(price*quantity) >= 100 between '2020-07-01' and '2020-07-31' then customer_id
+     end as cust 
+from product1 as p inner join orders1 as o on p.product_id = o.product_id group by o.customer_id;
+
+-- Q29. Write an SQL query to report the distinct titles of the kid-friendly movies streamed in June 2020. Return the result table in any order.
+create table TVProgram(program_date date, content_id int, `channel` varchar(50), primary key(program_date,content_id));
+create table content(content_id int primary key, title varchar(50), kids_content enum('Y','N'),content_type varchar(50));
+
+insert into TVProgram values('2020-06-10 08:00',1,'LC-Channel'),('2020-05-11 12:00',2,'LC-Channel'),('2020-05-12 12:00',3,'LC-Channel'),
+('2020-05-13 14:00',4,'Disney Ch'),('2020-06-18 14:00',4,'Disney Ch'),('2020-07-15 16:00',5,'Disney Ch');
+
+insert into content values(1,'Leetcode Movie','N','Movies'),(2,'Alg. for Kids','Y','Series'),(3,'Database Sols','N','Series'),
+(4,'Aladdin','Y','Movies'),(5,'Cinderella','Y','Movies');
+select * from Tvprogram;
+select * from content;
+
+with content as (select content_id,title from content where kids_content= 'Y' and content_type = 'Movies')
+select distinct c.title from tvprogram as t inner join content as c on t.content_id = c.content_id where t.program_date between '2020-06-01' and '2020-06-30';
+
+-- Q.30 Write an SQL query to find the npv of each query of the Queries table. Return the result table in any order.
+create table NPV(id int, `year` int, npv int, primary key(id,`year`));
+create table queries(id int,`year` int, primary key(id,`year`));
+insert into NPV values(1,2018,100),(7,2020,30),(13,2019,40),(1,2019,113),(2,2008,121),(3,2009,12),(11,2020,99),(7,2019,0);
+
+insert into queries values(1,2019),(2,2008),(3,2009),(7,2018),(7,2019),(7,2020),(13,2019);
+select * from npv;
+select * from queries;
+
+select n.id,n.`year`,n.npv from queries q inner join npv n on n.`year`= q.`year` and n.id=q.id;
+
+-- 31. same questin as above
+select n.id,n.`year`,n.npv from queries q inner join npv n on n.`year`= q.`year` and n.id=q.id;
+
+-- Q32. Write an SQL query to show the unique ID of each user, If a user does not have a unique ID replace just show null.
+create table employees (id int primary key, name varchar(50));
+create table employeeuni(id int, unique_id int,primary key(id,unique_id));
+
+insert into employees values(1,'Alice'),(7,'Bob'),(11,'Meir'),(90,'Winston'),(3,'Jonathan');
+insert into employeeuni values(3,1),(11,2),(90,3);
+
+select * from employees;
+select * from employeeuni;
+
+select ee.unique_id, e.name from employees e left join employeeuni ee on e.id = ee.id order by e.name;
+
+-- Q33. Write an SQL query to report the distance travelled by each user. 
+-- Return the result table ordered by travelled_distance in descending order, 
+-- if two or more users travelled the same distance, order them by their name in ascending order.
+
+create table users1(id int primary key, name varchar(50));
+create table rides(id int primary key, user_id int, foreign key(user_id) references users1(id), distance int);
+
+insert into users1 values(1,'Alice'),(2,'Bob'),(3,'Alex'),(4,'Donald'),(7,'Lee'),(13,'Jonathan'),(19,'Elvis');
+insert into rides values(1,1,120),(2,2,317),(3,3,222),(4,7,100),(5,13,312),(6,19,50),(7,7,120),(8,19,400),(9,7,230);
+
+select * from users1;
+select * from rides;
+
+with test as (select user_id, sum(distance) as distance from rides group by user_id order by distance desc)
+select u.name, coalesce(t.distance,0) as Distance from users1 u left join test t on u.id = t.user_id order by t.distance desc,u.name;
+
+-- Q34. Write an SQL query to get the names of products that have at least 100 units ordered in February 2020 and their amount.
+-- repeated question Q.26
+
+-- Q35. Write an SQL query to: 
+-- ● Find the name of the user who has rated the greatest number of movies. In case of a tie, return the lexicographically smaller user name. 
+-- ● Find the movie name with the highest average rating in February 2020. In case of a tie, return the lexicographically smaller movie name.
+create table movies(movie_id int primary key,title varchar(50));
+create table users2(user_id int primary key, name varchar(50));
+create table movierating(movie_id int, user_id int, rating int, created_at date,primary key(movie_id,user_id));
+
+insert into movies values(1,'Avengers'),(2,'Frozen'),(3,'Joker');
+insert into users2 values(1,'Daniel'),(2,'Monica'),(3,'Maria'),(4,'James');
+insert into movierating values(1,1,3,'2020-01-12'),(1,2,4,'2020-02-11'),
+(1,3,2,'2020-02-12'),(1,4,1,'2020-01-01'),(2,1,5,'2020-02-17'),(2,2,2,'2020-02-01'),(2,3,2,'2020-03-01'),(3,1,3,'2020-02-22'),(3,2,4,'2020-02-25');
+
+select * from movies;
+select * from users2;
+select * from movierating;
+
+with test as (select user_id,count(user_id) as rated_movie_count from movierating group by user_id)
+select u.name from test t inner join users2 u on t.user_id = u.user_id order by u.name limit 1;
+
+with test1 as (select movie_id,round(avg(rating),1) as avg_rating from movierating where created_at between '2020-02-01' and '2020-02-28' group by movie_id order by avg_rating desc limit 1)
+select m.title from movies m inner join  test1 t on m.movie_id = t.movie_id;
+
+
+-- Q36. Write an SQL query to report the distance travelled by each user. 
+-- Return the result table ordered by travelled_distance in descending order, if two or more users travelled the same distance, order them by their name in ascending order.
+-- repeated question Q.33
+
+-- Q.37 same as Q.32
+
+-- Q.38 Write an SQL query to find the id and the name of all students who are enrolled in departments that no longer exist. 
+-- Return the result table in any order.
+create table departments(id int primary key, name varchar(50));
+create table studentsd(id int primary key, name varchar(50), department_id int);
+insert into departments values(1,'Electrical Engineering'),(7,'Computer Engineering'),(13,'Business Administration');
+insert into studentsd values(23,'Alice',1),(1,'Bob',7),(5,'Jennifer',13),(2,'John',14),(4,'Jasmine',77),
+(3,'Steve',74),(6,'Luis',1),(8,'Jonathan',7),(7,'Daiana',33),(11,'Madelynn',1);
+
+select * from departments;
+select * from studentsd;
+
+select id, name from studentsd where name not in (select distinct s.name from departments d inner join studentsd s on d.id = s.department_id);
+
+-- Q39. Write an SQL query to report the number of calls and the total call duration between each pair of distinct persons 
+-- (person1, person2) where person1 < person2.
+create table calls (from_id int, to_id int, duration int);
+insert into calls values(1,2,59),(2,1,11),(1,3,20),(3,4,100),(3,4,200),(3,4,200),(4,3,499);
+select 
+	case when from_id < to_id then from_id else to_id end as person1,
+    case when from_id < to_id then to_id else from_id end as person2,
+    count(*) as call_count,sum(duration) as total_duration from calls group by person1,person2;
+-- or 
+select least(from_id,to_id) as person1,greatest(from_id,to_id) as person2,count(*) as call_count,sum(duration) as total_duration from calls group by person2,person1;
+
+-- Q.40 Write an SQL query to find the average selling price for each product. average_price should be rounded to 2 decimal places.
+create table prices1(product_id int, start_date date, end_date date, price int);
+create table unitssold(product_id int, purchase_date date, units int);
+
+insert into prices1 values(1,'019-02-17','2019-02-28',5),(1,'2019-03-01','2019-03-22',20),(2,'2019-02-01','2019-02-20',15),(2,'2019-02-21','2019-03-31',30);
+insert into unitssold values(1,'2019-02-25',100),(1,'2019-03-01',15),(2,'2019-02-10',200),(2,'2019-03-22',30);
+
+select * from prices1;
+select * from unitssold;
+select p.product_id,round(sum(p.price*u.units)/sum(u.units),2) as avg_price from prices1 p inner join unitssold u on p.product_id = u.product_id
+where u.purchase_date between p.start_date and p.end_date group by p.product_id;
+
+-- Q41.Write an SQL query to report the number of cubic feet of volume the inventory occupies in each warehouse.
+create table warehouse(name varchar(50), product_id int, units int);
+create table products1(product_id int primary key, product_name varchar(50), Width int, Length int, Height int);
+insert into warehouse values('LCHouse1',1,1),('LCHouse1',2,10),('LCHouse1',3,5),('LCHouse2',1,2),('LCHouse2',2,2),('LCHouse3',4,1);
+insert into products1 values(1,'LC-TV',5,50,40),(2,'LC-KeyChain',5,5,5),(3,'LC-Phone',2,10,10),(4,'LC-T-Shirt',4,10,20);
+
+select * from warehouse;
+select * from products1;
+
+select w.name as warehouse_name, sum(w.units*(p.width*p.length*p.height)) as volume from warehouse w inner join products1 p on
+w.product_id=p.product_id group by w.name; 
+
 
 
 
