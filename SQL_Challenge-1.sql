@@ -442,5 +442,75 @@ select * from employee2;
 with manager as (select case when count(managerid) >= 5 then managerid end as manager from employee2 group by managerid having manager >= 5)
 select e.name from employee2 e inner join manager m on e.id = m.manager;
 
+-- Q45. Write an SQL query to report the respective department name and number of students majoring in each department for 
+-- all departments in the Department table (even ones with no current students). Return the result table ordered by student_number in descending order.
+--  In case of a tie, order them by dept_name alphabetically.
+create table student(student_id int primary key, student_name varchar(50), gender varchar(1), dept_id int,foreign key(dept_id) references department(dept_id));
+create table department(dept_id int primary key, dept_name varchar(50));
+
+insert into department values(1,'Engineering'),(2,'Science'),(3,'Law');
+insert into department values(4,'History');
+insert into student values(1,'Jack','M',1),(2,'Jane','F',1),(3,'Mark','M',2);
+
+select * from department;
+select * from student;
+
+with student_count as(select dept_id,count(*) as std_count from student group by dept_id)
+select d.dept_name,coalesce(s.std_count,0) as studentnumber from department d left join student_count s on d.dept_id = s.dept_id order by studentnumber desc,dept_name;
+
+-- Q46. Write an SQL query to report the customer ids from the Customer table that bought all the products in the Product table. 
+-- Return the result table in any order.
+create table customer(customer_id int, product_key int);
+create table product3(product_key int primary key);
+
+insert into customer values(1,5),(2,6),(3,5),(3,6),(1,6);
+insert into product3 values(5),(6);
+select * from customer;
+select * from product3;
+
+select customer_id from customer group by customer_id having count(distinct product_key) = (select count(product_key) from product3);
+
+-- Q47. Write an SQL query that reports the most experienced employees in each project. 
+-- In case of a tie, report all employees with the maximum number of experience years. Return the result table in any order.
+create table project(project_id int, employee_id int,primary key(project_id,employee_id));
+create table employee1(employee_id int primary key,name varchar(50), experience_years int);
+insert into project values(1,1),(1,2),(1,3),(2,1),(2,4);
+insert into employee1 values(1,'Khaled',3),(2,'Ali',2),(3,'John',3),(4,'Doe',2);
+
+select * from project;
+select * from employee1;
+
+select p.project_id,e.employee_id from project p inner join employee1 e on p.employee_id=e.employee_id where e.experience_years = (select max(experience_years) from employee1);
+-- or 
+select project_id,employee_id from (
+select p.project_id,e.employee_id,dense_rank() over (partition by p.project_id order by e.experience_years desc) as ranking from project p inner join
+employee1 e on e.employee_id = p.employee_id) test where ranking = 1;
 
 
+-- Q48. Write an SQL query that reports the books that have sold less than 10 copies in the last year, 
+-- excluding books that have been available for less than one month from today. Assume today is 2019-06-23. Return the result table in any order
+create table books(book_id int primary key, name varchar(50), available_from date);
+create table orders3(order_id int, book_id int, quantity int, dispatch_date date, foreign key(book_id) references books(book_id));
+insert into books values(1,"Kalila And Demna",'2010-01-01'),(2, "28 Letters",'2012-05-12'),(3,"The Hobbit",'2019-06-10'),(4,"13 Reasons Why",'2019-06-01'),
+(5,"The Hunger Games",'2008-09-21');
+insert into orders3 values(1,1,2,'2018-07-26'),(2,1,1,'2018-11-05'),(3,3,8,'2019-06-11'),(4,4,6,'2019-06-05'),(5,4,5,'2019-06-20'),
+(6,5,9,'2009-02-02'),(7,5,8,'2010-04-13');
+
+select * from Books;
+select * from orders3;
+select b.name,b.book_id from books b inner join orders3 o on b.book_id = o.book_id where b.available_from < '2019-05-23'  and (o.dispatch_date between '2018-06-23' and '2019-06-23') group by b.book_id having sum(o.quantity) < 10;
+
+-- Q49. Write a SQL query to find the highest grade with its corresponding course for each student. In case of a tie, 
+-- you should find the course with the smallest course_id. Return the result table ordered by student_id in ascending order.
+create table enrollments(student_id int, course_id int, grade int);
+insert into enrollments values(2,2,95),(2,3,95),(1,1,90),(1,2,99),(3,1,80),(3,2,75),(3,3,82);
+select * from enrollments;
+
+with highest_grade as (select student_id,course_id,grade,row_number() over (partition by student_id order by grade desc) as rrank from enrollments)
+select student_id,course_id,grade from highest_grade where rrank = 1;
+
+-- Q50. The winner in each group is the player who scored the maximum total points within the group. 
+-- In the case of a tie, the lowest player_id wins. Write an SQL query to find the winner in each group. Return the result table in any order.
+create table teams(team_id int primary key, team_name varchar(50));
+create table matches(match_id int primary key, host_team int, guest_team int, host_goals int, guest_goals int);
+insert into teams values(
