@@ -58,7 +58,12 @@ select (count(city) - count(distinct city)) as diff from station;
 -- If there is more than one smallest or largest city, choose the one that comes first when ordered alphabetically.
 
 select city,length(city) as 'length' from station where length(city) = (select min(length(city)) from station) order by city limit 1;
+-- or 
+select city,length(city) as len from station order by length(city),city limit 1;
+
 select city,length(city) as 'length' from station where length(city) = (select max(length(city)) from station);
+-- or
+select city,length(city) as len from station order by length(city) desc,city limit 1;
 
 -- Q11. Query the list of CITY names starting with vowels (i.e., a, e, i, o, or u) from STATION. Your result cannot contain duplicates.
 select count(distinct city) from station where city like "E%" or city like "I%" or city like "O%" or city like "U%" or city like "A%";
@@ -75,15 +80,24 @@ select distinct city from station where substr(city,-1,1) in ('a','e','i','o','u
 select distinct city from station where city rlike '^*.[aeiou]$';
 
 -- Q13. Query the list of CITY names from STATION that do not start with vowels. Your result cannot contain duplicates.
-select distinct city from station where city rlike '^[^aeiou].*.[^aeiou]$';
+select count(distinct city) from station where city rlike '^[^aeiou].*.[^aeiou]$';
+-- or
+select count(distinct city) from station where left(city,1) not in ('a','e','i','o','u') and right(city,1) not in ('a','e','i','o','u');
 
 -- Q14. Query the list of CITY names from STATION that do not end with vowels. Your result cannot contain duplicates.
-select city from station where city not in (select distinct city from station where city like "%a" or city like "%e" or city like "%i" or city like "%o" or city like "%u");
+select distinct city from station where city not in (select distinct city from station where city like "%a" or city like "%e" or city like "%i" or city like "%o" or city like "%u");
+-- or 
+select distinct city from station where city rlike '^*.[^aeiou]$';
+
 
 -- Q15. Query the list of CITY names from STATION that either do not start with vowels or do not end with vowels. Your result cannot contain duplicates.
 select distinct city from station where city not in (select distinct city from station where city like "A%" or city like "I%" or city like "O%" or city like "U%" or city like "E%")
 union 
 select distinct city from station where city not in (select distinct city from station where city like "%a" or city like "%e" or city like "%i" or city like "%o" or city like "%u");
+-- or
+select distinct city from station where city rlike '^[^aeiou].*'
+union 
+select distinct city from station where city rlike '^*.[^aeiou]$';
 
 -- Q16. Query the list of CITY names from STATION that do not start with vowels and do not end with vowels. Your result cannot contain duplicates.
 select city from station where city not in (select distinct city from station where city like "A%" or city like "I%" or city like "O%" or city like "U%" or city like "E%")
@@ -210,6 +224,7 @@ select * from activity;
 select player_id,event_date as first_login from
 (select player_id,event_date,row_number() over (partition by player_id order by event_date) as login_date from activity) as test where login_date=1;
 
+
  -- Q25. Write an SQL query to report the device that is first logged in for each player
 select player_id,device_id from(
 select player_id,device_id, row_number() over (partition by player_id) as first_logon from activity) as test where first_logon = 1;
@@ -267,7 +282,7 @@ select c.customer_id,c.`name` from money_spent as m inner join customers1 as c o
 
 select 
 case when sum(price*quantity) >= 100 between '2020-06-01' and '2020-06-30' and sum(price*quantity) >= 100 between '2020-07-01' and '2020-07-31' then customer_id
-     end as cust 
+     end as cust
 from product1 as p inner join orders1 as o on p.product_id = o.product_id group by o.customer_id;
 
 -- Q29. Write an SQL query to report the distinct titles of the kid-friendly movies streamed in June 2020. Return the result table in any order.
@@ -323,6 +338,7 @@ insert into rides values(1,1,120),(2,2,317),(3,3,222),(4,7,100),(5,13,312),(6,19
 
 select * from users1;
 select * from rides;
+select user_id, sum(distance) as distance from rides group by user_id order by distance desc;
 
 with test as (select user_id, sum(distance) as distance from rides group by user_id order by distance desc)
 select u.name, coalesce(t.distance,0) as Distance from users1 u left join test t on u.id = t.user_id order by t.distance desc,u.name;
@@ -345,9 +361,12 @@ insert into movierating values(1,1,3,'2020-01-12'),(1,2,4,'2020-02-11'),
 select * from movies;
 select * from users2;
 select * from movierating;
+select user_id,count(user_id) as rated_movie_count from movierating group by user_id;
 
 with test as (select user_id,count(user_id) as rated_movie_count from movierating group by user_id)
 select u.name from test t inner join users2 u on t.user_id = u.user_id order by u.name limit 1;
+
+select movie_id,round(avg(rating),1) as avg_rating from movierating where created_at between '2020-02-01' and '2020-02-28' group by movie_id order by avg_rating desc limit 1;
 
 with test1 as (select movie_id,round(avg(rating),1) as avg_rating from movierating where created_at between '2020-02-01' and '2020-02-28' group by movie_id order by avg_rating desc limit 1)
 select m.title from movies m inner join  test1 t on m.movie_id = t.movie_id;
@@ -482,6 +501,7 @@ select * from employee1;
 
 select p.project_id,e.employee_id from project p inner join employee1 e on p.employee_id=e.employee_id where e.experience_years = (select max(experience_years) from employee1);
 -- or 
+
 select project_id,employee_id from (
 select p.project_id,e.employee_id,dense_rank() over (partition by p.project_id order by e.experience_years desc) as ranking from project p inner join
 employee1 e on e.employee_id = p.employee_id) test where ranking = 1;
@@ -505,12 +525,26 @@ select b.name,b.book_id from books b inner join orders3 o on b.book_id = o.book_
 create table enrollments(student_id int, course_id int, grade int);
 insert into enrollments values(2,2,95),(2,3,95),(1,1,90),(1,2,99),(3,1,80),(3,2,75),(3,3,82);
 select * from enrollments;
-
-with highest_grade as (select student_id,course_id,grade,row_number() over (partition by student_id order by grade desc) as rrank from enrollments)
+select student_id,course_id,grade,row_number() over (partition by course_id order by grade desc) as rrank from enrollments;
+with highest_grade as (select student_id,course_id,grade,row_number() over (partition by course_id order by grade desc) as rrank from enrollments)
 select student_id,course_id,grade from highest_grade where rrank = 1;
 
 -- Q50. The winner in each group is the player who scored the maximum total points within the group. 
 -- In the case of a tie, the lowest player_id wins. Write an SQL query to find the winner in each group. Return the result table in any order.
-create table teams(team_id int primary key, team_name varchar(50));
-create table matches(match_id int primary key, host_team int, guest_team int, host_goals int, guest_goals int);
-insert into teams values(
+create table player(player_id int primary key,group_id int);
+create table matches(match_id int primary key, first_player int, second_player int, first_score int, second_score int);
+insert into player values(15,1),(25,1),(30,1),(45,1),(10,2),(35,2),(50,2), (20,3),(40,3);
+insert into matches values(1,15,45,3,0),(2,30,25,1,2),(3,30,15,2,0),(4,40,20,5,2),(5,35,50,1,1);
+select * from player;
+select * from matches;
+
+select player_id,group_id,score from (
+select player_id,group_id,score,dense_rank() over (partition by group_id order by score desc,player_id) as r from(
+select p.*,case when p.player_id = m.first_player then m.first_score
+				when p.player_id = m.second_player then m.second_score end as score from player p, matches m where p.player_id in (m.first_player,m.second_player)) test) test1
+                where r = 1;
+                
+                select player_id,group_id,score,dense_rank() over (partition by group_id order by score desc,player_id) as r from(
+select p.*,case when p.player_id = m.first_player then m.first_score
+				when p.player_id = m.second_player then m.second_score end as score from player p, matches m where p.player_id in (m.first_player,m.second_player)) test;
+
